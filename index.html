@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS DevOps Hidden Gems</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .bot {
+            position: fixed;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            transition: all 1s ease;
+        }
+        
+        .bot-center {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: botWave 1s infinite ease-in-out;
+        }
+        
+        .bot-left {
+            top: 20px;
+            left: 20px;
+            transform: none;
+            animation: botWave 1s infinite ease-in-out;
+        }
+        
+        @keyframes botWave {
+            0%, 100% { transform: rotate(-5deg) scale(1); }
+            50% { transform: rotate(5deg) scale(1.05); }
+        }
+        
+        .speech-bubble {
+            position: fixed;
+            top: 40%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            opacity: 0;
+            animation: fadeIn 1s ease forwards;
+        }
+        
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid white;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        .screen-black {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 2s ease;
+            z-index: 500;
+        }
+        
+        .screen-black.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .fact-card {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            opacity: 0;
+        }
+        
+        .fact-card.show {
+            animation: cardShow 0.8s ease-out forwards;
+        }
+        
+        .fact-card.hide {
+            animation: cardHide 0.5s ease-out forwards;
+        }
+        
+        @keyframes cardShow {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            70% { transform: translate(-50%, -50%) scale(1.05); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        @keyframes cardHide {
+            to { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+        
+        .all-cards {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .all-cards .fact-card {
+            flex: 1;
+            position: relative;
+            margin-bottom: 0;
+            transform: none;
+            opacity: 1;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .fact-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .fact-emoji {
+            font-size: 3rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .fact-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .fact-description {
+            color: #666;
+            line-height: 1.6;
+            font-size: 1.2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .fact-card {
+                width: calc(100vw - 40px);
+                padding: 30px;
+            }
+            .all-cards {
+                width: calc(100vw - 40px);
+            }
+            .bot { width: 60px; height: 60px; font-size: 1.5rem; }
+            .fact-title { font-size: 1.5rem; }
+            .fact-description { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        const facts = [
+            {
+                emoji: "🔍",
+                title: "S3 Can Host Your React App... Properly",
+                description: "Configure S3 to catch 404s and reroute to index.html for SPAs. No CloudFront needed - just clever S3 config for serverless bliss.",
+                speech: "S3 Can Host Your React App Properly. Configure S3 to catch 404 errors and reroute them to index.html for single page applications. No CloudFront needed, just clever S3 configuration for serverless bliss."
+            },
+            {
+                emoji: "🔐", 
+                title: "SSH Into EC2 Without Opening Port 22",
+                description: "AWS Systems Manager lets you SSH without key pairs, keep port 22 closed, and record sessions. Clean, secure, IAM-controlled access.",
+                speech: "You Can SSH Into EC2 Without Ever Opening Port 22. AWS Systems Manager lets you SSH without key pairs, keep port 22 closed, and record sessions. Clean, secure, IAM-controlled access."
+            },
+            {
+                emoji: "⚡",
+                title: "Lambda Isn't Just for Tiny Jobs Anymore", 
+                description: "Up to 10GB RAM, 6 vCPUs, 10GB disk. More memory often means less cost due to faster execution. Optimize with Lambda Power Tuning.",
+                speech: "Lambda Isn't Just for Tiny Jobs Anymore. Up to 10 gigabytes RAM, 6 virtual CPUs, 10 gigabytes disk. More memory often means less cost due to faster execution. Optimize with Lambda Power Tuning."
+            }
+        ];
+        
+        const speakText = (text, onEnd) => {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                utterance.volume = 0.8;
+                if (onEnd) utterance.onend = onEnd;
+                speechSynthesis.speak(utterance);
+            } else if (onEnd) {
+                setTimeout(onEnd, 5000); // fallback timing
+            }
+        };
+        
+        function App() {
+            const [phase, setPhase] = useState('intro'); // intro, cards, bye
+            const [currentCard, setCurrentCard] = useState(-1);
+            const [showSpeech, setShowSpeech] = useState(false);
+            
+            useEffect(() => {
+                // Intro phase
+                setTimeout(() => {
+                    setShowSpeech(true);
+                    speakText("3 Facts about AWS services that DevOps engineers might miss!");
+                }, 1000);
+                setTimeout(() => {
+                    setShowSpeech(false);
+                    setPhase('cards');
+                }, 4000);
+                
+                // Cards phase - each card shows until speech completes
+                let cardDelay = 5000;
+                
+                setTimeout(() => {
+                    setCurrentCard(0);
+                    speakText(facts[0].speech, () => {
+                        setTimeout(() => {
+                            setCurrentCard(1);
+                            speakText(facts[1].speech, () => {
+                                setTimeout(() => {
+                                    setCurrentCard(2);
+                                    speakText(facts[2].speech, () => {
+                                        setTimeout(() => {
+                                            setPhase('bye');
+                                            setTimeout(() => {
+                                                setShowSpeech(true);
+                                                speakText("Let me know if you've discovered any hidden AWS magic — I'd love to trade notes!");
+                                            }, 2000);
+                                        }, 1000);
+                                    });
+                                }, 1000);
+                            });
+                        }, 1000);
+                    });
+                }, cardDelay);
+                
+                // Final message will be triggered when bye phase starts
+                
+
+            }, []);
+            
+            return (
+                <>
+                    <div className={`bot ${
+                        phase === 'intro' || phase === 'bye' ? 'bot-center' : 'bot-left'
+                    }`}>
+                        🤖
+                    </div>
+                    
+                    {showSpeech && phase === 'intro' && (
+                        <div className="speech-bubble">
+                            3 Facts about AWS services that DevOps engineers might miss!
+                        </div>
+                    )}
+                    
+                    {showSpeech && phase === 'bye' && (
+                        <div className="speech-bubble">
+                            Let me know if you've discovered any hidden AWS magic — I'd love to trade notes!
+                        </div>
+                    )}
+                    
+                    {phase === 'cards' && currentCard >= 0 && (
+                        <div className="fact-card show">
+                            <div className="fact-header">
+                                <span className="fact-emoji">{facts[currentCard].emoji}</span>
+                                <h3 className="fact-title">{facts[currentCard].title}</h3>
+                            </div>
+                            <p className="fact-description">{facts[currentCard].description}</p>
+                        </div>
+                    )}
+                    
+
+                    
+
+                </>
+            );
+        }
+        
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
